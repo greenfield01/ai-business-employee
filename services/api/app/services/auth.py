@@ -33,3 +33,31 @@ async def register_user(
     await db.refresh(user)
 
     return user
+
+
+
+from services.api.app.core.jwt import create_access_token
+from services.api.app.core.security import hash_password, verify_password
+
+async def login_user(
+    db: AsyncSession,
+    email: str,
+    password: str,
+) -> str:
+    """Authenticate a user and return a JWT access token."""
+
+    user = await db.scalar(
+        select(User).where(User.email == email)
+    )
+
+    if user is None:
+        raise ValueError("Invalid email or password.")
+
+    if not verify_password(password, user.password_hash):
+        raise ValueError("Invalid email or password.")
+
+    if not user.is_active:
+        raise ValueError("This user account is inactive.")
+
+    return create_access_token(user.id)
+
