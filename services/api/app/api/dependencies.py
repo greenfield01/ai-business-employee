@@ -1,3 +1,12 @@
+"""
+This module defines FastAPI dependencies for authentication and authorization.
+
+The dependencies in this module identify the authenticated user and
+verify that the user has access to the requested business.
+"""
+
+from uuid import UUID
+
 from uuid import UUID
 
 import jwt
@@ -8,8 +17,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from services.api.app.core.config import settings
+from services.api.app.db.models.membership import Membership
 from services.api.app.db.models.user import User
 from services.api.app.db.session import get_db
+from services.api.app.services.authorization import get_business_membership
 
 
 bearer_scheme = HTTPBearer()
@@ -78,3 +89,30 @@ async def get_current_user(
         )
 
     return user
+
+
+async def get_current_business_membership(
+    business_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Membership:
+    """
+    Return the authenticated user's membership in a business.
+
+    Access is granted only when the authenticated user belongs to
+    the requested business.
+    """
+
+    membership = await get_business_membership(
+        db=db,
+        user=current_user,
+        business_id=business_id,
+    )
+
+    if membership is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You do not have access to this business.",
+        )
+
+    return membership
