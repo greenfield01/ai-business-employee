@@ -1,11 +1,17 @@
+"""
+This module creates and configures the FastAPI application.
+
+The application registers API routers and provides the central
+entry point for the AI Business Employee backend service.
+"""
+
 from fastapi import FastAPI
 
 from services.api.app.api.routes.auth import router as auth_router
 from services.api.app.api.routes.businesses import router as businesses_router
 from services.api.app.api.routes.health import router as health_router
+from services.api.app.api.routes.products import router as products_router
 from services.api.app.core.config import settings
-
-
 
 app = FastAPI(
     title=settings.app_name,
@@ -28,4 +34,10 @@ app.include_router(
     businesses_router,
     prefix="/businesses",
     tags=["Businesses"],
+)
+
+app.include_router(
+    products_router,
+    prefix="/businesses",
+    tags=["Products"],
 )
