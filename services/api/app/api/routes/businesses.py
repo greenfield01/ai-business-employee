@@ -15,16 +15,21 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from services.api.app.api.dependencies import (
     get_current_business_membership,
     get_current_user,
+    require_business_role,
 )
 from services.api.app.api.schemas.business import (
     BusinessCreateRequest,
     BusinessResponse,
+    BusinessUpdateRequest,
 )
 from services.api.app.db.models.business import Business
-from services.api.app.db.models.membership import Membership
+from services.api.app.db.models.membership import Membership, MembershipRole
 from services.api.app.db.models.user import User
 from services.api.app.db.session import get_db
-from services.api.app.services.business import create_business
+from services.api.app.services.business import (
+    create_business,
+    update_business,
+)
 
 router = APIRouter()
 
@@ -74,8 +79,8 @@ async def get_business_endpoint(
     """
     Return a business when the authenticated user belongs to it.
 
-    Authorization is performed by the get_current_business_membership
-    dependency before the business is returned.
+    Authorization is performed by the business-membership dependency
+    before the business is returned.
     """
     business = await db.scalar(
         select(Business).where(Business.id == business_id)
@@ -86,5 +91,43 @@ async def get_business_endpoint(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Business not found.",
         )
+
+    return BusinessResponse.model_validate(business)
+
+
+@router.patch(
+    "/{business_id}",
+    response_model=BusinessResponse,
+)
+async def update_business_endpoint(
+    business_id: UUID,
+    request: BusinessUpdateRequest,
+    membership: Membership = Depends(
+        require_business_role(MembershipRole.ADMIN)
+    ),
+    db: AsyncSession = Depends(get_db),
+) -> BusinessResponse:
+    """
+    Update editable business information.
+
+    ADMIN and OWNER memberships are allowed to perform this operation.
+    MEMBER memberships are rejected by the RBAC dependency.
+    """
+    business = await db.scalar(
+        select(Business).where(Business.id == business_id)
+    )
+
+    if business is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Business not found.",
+        )
+
+    business = await update_business(
+        db=db,
+        business=business,
+        name=request.name,
+        description=request.description,
+    )
 
     return BusinessResponse.model_validate(business)

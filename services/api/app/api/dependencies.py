@@ -1,12 +1,12 @@
 """
-This module defines FastAPI dependencies for authentication and authorization.
+This module defines FastAPI dependencies for authentication
+and business-level authorization.
 
-The dependencies in this module identify the authenticated user and
-verify that the user has access to the requested business.
+The dependencies in this module identify the authenticated user,
+verify business membership, and enforce minimum business roles.
 """
 
-from uuid import UUID
-
+from collections.abc import Awaitable, Callable
 from uuid import UUID
 
 import jwt
@@ -17,11 +17,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from services.api.app.core.config import settings
-from services.api.app.db.models.membership import Membership
+from services.api.app.db.models.membership import Membership, MembershipRole
 from services.api.app.db.models.user import User
 from services.api.app.db.session import get_db
-from services.api.app.services.authorization import get_business_membership
-
+from services.api.app.services.authorization import (
+    get_business_membership,
+    has_sufficient_business_role,
+)
 
 bearer_scheme = HTTPBearer()
 
@@ -30,11 +32,9 @@ async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
     db: AsyncSession = Depends(get_db),
 ) -> User:
-    """Return the authenticated user from a valid JWT."""
-
+    """Return the authenticated user represented by a valid JWT."""
     token = credentials.credentials
 
-    # Decode and verify the JWT.
     try:
         payload = jwt.decode(
             token,
@@ -48,7 +48,6 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         ) from exc
 
-    # Extract the user ID from the JWT subject.
     subject = payload.get("sub")
 
     if subject is None:
@@ -58,7 +57,6 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Make sure the subject is actually a valid UUID.
     try:
         user_id = UUID(subject)
     except (ValueError, AttributeError) as exc:
@@ -68,7 +66,6 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         ) from exc
 
-    # Find the user represented by the token.
     user = await db.scalar(
         select(User).where(User.id == user_id)
     )
@@ -80,7 +77,6 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Don't allow disabled users to continue using existing tokens.
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -102,7 +98,6 @@ async def get_current_business_membership(
     Access is granted only when the authenticated user belongs to
     the requested business.
     """
-
     membership = await get_business_membership(
         db=db,
         user=current_user,
@@ -116,3 +111,37 @@ async def get_current_business_membership(
         )
 
     return membership
+
+
+def require_business_role(
+    minimum_role: MembershipRole,
+) -> Callable[..., Awaitable[Membership]]:
+    """
+    Create a FastAPI dependency that enforces a minimum business role.
+
+    The returned dependency first verifies business membership and
+    then checks whether the user's role is high enough to perform
+    the requested operation.
+    """
+
+    async def role_checker(
+        membership: Membership = Depends(get_current_business_membership),
+    ) -> Membership:
+        """
+        Verify that the authenticated user's role satisfies the requirement.
+        """
+        if not has_sufficient_business_role(
+            actual_role=membership.role,
+            minimum_role=minimum_role,
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=(
+                    f"This action requires {minimum_role.value} "
+                    "access or higher."
+                ),
+            )
+
+        return membership
+
+    return role_checker

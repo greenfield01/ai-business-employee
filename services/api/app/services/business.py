@@ -2,7 +2,7 @@
 This module contains business-management services.
 
 The services in this module implement business rules for creating
-and managing businesses independently of the HTTP/API layer.
+and updating businesses independently of the HTTP/API layer.
 """
 
 from sqlalchemy import select
@@ -27,7 +27,6 @@ async def create_business(
     database transaction so that either both records are created
     successfully or neither record is persisted.
     """
-
     existing_business = await db.scalar(
         select(Business).where(Business.slug == slug)
     )
@@ -49,6 +48,30 @@ async def create_business(
 
     db.add(business)
     db.add(membership)
+
+    await db.commit()
+    await db.refresh(business)
+
+    return business
+
+
+async def update_business(
+    db: AsyncSession,
+    business: Business,
+    name: str | None = None,
+    description: str | None = None,
+) -> Business:
+    """
+    Update editable business fields and persist the changes.
+
+    Only fields explicitly supplied by the caller are changed.
+    Authorization is intentionally handled outside this service.
+    """
+    if name is not None:
+        business.name = name
+
+    if description is not None:
+        business.description = description
 
     await db.commit()
     await db.refresh(business)
