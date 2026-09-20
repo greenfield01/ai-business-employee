@@ -2,8 +2,8 @@
 This module defines the Business database model.
 
 A business represents a tenant in the AI Business Employee
-platform. Business-owned resources such as customers, products,
-conversations, knowledge, and AI employees belong to a business.
+platform. Business-owned resources belong to a specific business
+and are isolated through membership-based authorization.
 """
 
 from sqlalchemy import Boolean, String, Text
@@ -47,6 +47,21 @@ class Business(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
 
     products: Mapped[list["Product"]] = relationship(
+        back_populates="business",
+        cascade="all, delete-orphan",
+    )
+
+    customers: Mapped[list["Customer"]] = relationship(
+        back_populates="business",
+        cascade="all, delete-orphan",
+    )
+
+    leads: Mapped[list["Lead"]] = relationship(
+        back_populates="business",
+        cascade="all, delete-orphan",
+    )
+
+    conversations: Mapped[list["Conversation"]] = relationship(
         back_populates="business",
         cascade="all, delete-orphan",
     )

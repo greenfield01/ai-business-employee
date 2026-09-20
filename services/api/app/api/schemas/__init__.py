@@ -16,6 +16,29 @@ from services.api.app.api.schemas.business import (
     BusinessResponse,
     BusinessUpdateRequest,
 )
+from services.api.app.api.schemas.conversation import (
+    ConversationCreateRequest,
+    ConversationListResponse,
+    ConversationResponse,
+    ConversationUpdateRequest,
+)
+from services.api.app.api.schemas.customer import (
+    CustomerCreateRequest,
+    CustomerListResponse,
+    CustomerResponse,
+    CustomerUpdateRequest,
+)
+from services.api.app.api.schemas.lead import (
+    LeadCreateRequest,
+    LeadListResponse,
+    LeadResponse,
+    LeadUpdateRequest,
+)
+from services.api.app.api.schemas.message import (
+    MessageCreateRequest,
+    MessageListResponse,
+    MessageResponse,
+)
 from services.api.app.api.schemas.product import (
     ProductCreateRequest,
     ProductListResponse,
@@ -27,7 +50,22 @@ __all__ = [
     "BusinessCreateRequest",
     "BusinessResponse",
     "BusinessUpdateRequest",
+    "ConversationCreateRequest",
+    "ConversationListResponse",
+    "ConversationResponse",
+    "ConversationUpdateRequest",
+    "CustomerCreateRequest",
+    "CustomerListResponse",
+    "CustomerResponse",
+    "CustomerUpdateRequest",
+    "LeadCreateRequest",
+    "LeadListResponse",
+    "LeadResponse",
+    "LeadUpdateRequest",
     "LoginRequest",
+    "MessageCreateRequest",
+    "MessageListResponse",
+    "MessageResponse",
     "ProductCreateRequest",
     "ProductListResponse",
     "ProductResponse",
